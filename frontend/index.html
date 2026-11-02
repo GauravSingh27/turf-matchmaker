@@ -6,88 +6,404 @@
   <title>TurfClash | Rival Matchmaking</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background-color: #0b0f14; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; }
+    body {
+      background-color: #0b0f14;
+      color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .modal-card {
+      background-color: #121820;
+      border: 1px solid #1f2937;
+    }
+    .input-field {
+      background-color: #0d1218;
+      border: 1px solid #1f2937;
+      color: #f3f4f6;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: #10b981;
+    }
+    .format-btn {
+      background-color: #0d1218;
+      border: 1px solid #1f2937;
+      color: #9ca3af;
+      white-space: nowrap;
+    }
+    .format-btn.active {
+      background-color: rgba(16, 185, 129, 0.15) !important;
+      border-color: #10b981 !important;
+      color: #34d399 !important;
+    }
+    .tab-btn.active {
+      background-color: #10b981;
+      color: #000000;
+      font-weight: 700;
+    }
+    .period-btn.active {
+      background-color: #10b981;
+      color: #000000;
+      font-weight: 700;
+    }
+    .hide-scrollbar {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .wheel-column {
+      scroll-snap-type: y mandatory;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .wheel-column::-webkit-scrollbar {
+      display: none;
+    }
+    .wheel-item {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      scroll-snap-align: center;
+      transition: all 0.15s ease-out;
+    }
   </style>
 </head>
 <body class="min-h-screen p-4 md:p-8">
 
-  <div class="max-w-4xl mx-auto space-y-8">
-    <!-- Header -->
-    <header class="flex flex-col md:flex-row justify-between items-center pb-6 border-b border-zinc-800 gap-4">
-      <div>
-        <h1 class="text-3xl font-extrabold tracking-tight text-emerald-400">⚡ TURFCLASH</h1>
-        <p class="text-xs text-zinc-400 mt-1">Rival Squad Matchmaking • Zero Online Fee Cuts • Settle at Counter</p>
+  <!-- Top Bar -->
+  <div class="max-w-xl mx-auto flex justify-between items-center pb-6 border-b border-zinc-800 mb-6">
+    <div>
+      <h1 class="text-2xl font-black text-emerald-400 tracking-wider">⚡ TURFCLASH</h1>
+      <p class="text-[11px] text-zinc-400">Matchmaking for Football & Box Cricket</p>
+    </div>
+    <button 
+      onclick="openModal()" 
+      class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold rounded-lg transition-all shadow-lg shadow-emerald-500/10 flex items-center gap-1.5"
+    >
+      <span>+</span> Offer a Challenge
+    </button>
+  </div>
+
+  <main class="max-w-xl mx-auto space-y-4">
+    <!-- Filter Bar -->
+    <section class="bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-3.5 space-y-2.5 shadow-lg">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+          <span>🔍</span> Filter Pitches
+        </span>
+        <button onclick="resetFilters()" class="text-[11px] text-zinc-500 hover:text-emerald-400 transition-colors">
+          Reset Filters
+        </button>
       </div>
-      <div class="text-right">
-        <span class="text-xs text-zinc-500 block">Current Player Session:</span>
-        <span id="sessionDisplay" class="text-xs text-emerald-300 font-mono">Not set (auto-saved on action)</span>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <div>
+          <label class="block text-[10px] text-zinc-500 font-semibold mb-1 uppercase">City Location</label>
+          <select id="filterCity" onchange="applyFilters()" class="input-field w-full rounded-lg px-2.5 py-1.5 text-xs">
+            <option value="ALL">All India (All Cities)</option>
+            <option value="Dehradun" selected>Dehradun</option>
+            <option value="Delhi NCR">Delhi NCR</option>
+            <option value="Mumbai">Mumbai</option>
+            <option value="Bengaluru">Bengaluru</option>
+            <option value="Hyderabad">Hyderabad</option>
+            <option value="Chandigarh">Chandigarh</option>
+            <option value="Rishikesh">Rishikesh</option>
+            <option value="Haridwar">Haridwar</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-[10px] text-zinc-500 font-semibold mb-1 uppercase">Sport</label>
+          <select id="filterSport" onchange="applyFilters()" class="input-field w-full rounded-lg px-2.5 py-1.5 text-xs">
+            <option value="ALL">All Sports</option>
+            <option value="Football">Football</option>
+            <option value="Box Cricket">Box Cricket</option>
+            <option value="Badminton">Badminton</option>
+          </select>
+        </div>
       </div>
-    </header>
+    </section>
 
-    <!-- Hosting Form -->
-    <section class="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 md:p-6 shadow-xl">
-      <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        <span>🛡️</span> Offer a Challenge
-      </h2>
+    <!-- Tab Navigation & Refresh Button -->
+    <div class="flex justify-between items-center bg-zinc-900/80 p-1.5 rounded-xl border border-zinc-800">
+      <div class="flex gap-1.5">
+        <button id="tabOpen" onclick="switchTab('OPEN')" class="tab-btn active px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 transition-all">
+          Active Challenges (<span id="countOpen">0</span>)
+        </button>
+        <button id="tabConfirmed" onclick="switchTab('CONFIRMED')" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 transition-all">
+          Confirmed Matches (<span id="countConfirmed">0</span>)
+        </button>
+      </div>
 
-      <form id="hostForm" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <button id="refreshBtn" onclick="handleManualRefresh()" class="text-xs text-zinc-400 hover:text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+        <span id="refreshIcon" class="inline-block">🔄</span> Refresh
+      </button>
+    </div>
+
+    <!-- Fixture Feed -->
+    <div id="matchFeed" class="space-y-3"></div>
+  </main>
+
+  <!-- OFFER A CHALLENGE MODAL -->
+  <div id="challengeModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 hidden overflow-y-auto">
+    <div class="modal-card w-full max-w-md rounded-2xl p-5 md:p-6 shadow-2xl relative my-auto">
+      
+      <div class="flex items-center justify-between pb-4 border-b border-zinc-800/80 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="text-emerald-400 text-lg">🛡️</span>
+          <h3 class="text-base font-bold text-white tracking-wide">Offer a Challenge</h3>
+        </div>
+        <button onclick="closeModal()" class="text-zinc-400 hover:text-white text-lg font-bold p-1">
+          ✕
+        </button>
+      </div>
+
+      <form id="hostForm" class="space-y-4 text-left">
+        <!-- Host Squad Name -->
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
+            Host Squad Name (Team 1)
+          </label>
+          <input 
+            type="text" 
+            id="hostTeam" 
+            required 
+            placeholder="e.g. Shivana FC" 
+            class="input-field w-full rounded-lg px-3.5 py-2.5 text-xs placeholder:text-zinc-600"
+          />
+        </div>
+
+        <!-- Sport & City Location -->
+        <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-zinc-400 mb-1">HOST SQUAD NAME (TEAM 1)</label>
-            <input type="text" id="hostTeam" required placeholder="e.g. Shivana FC" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500" />
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-zinc-400 mb-1">TURF VENUE & LOCATION</label>
-            <input type="text" id="turfName" required placeholder="e.g. XYZ Turf, Prem Nagar" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500" />
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-zinc-400 mb-1">SPORT</label>
-            <select id="sportType" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+            <label class="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">Sport</label>
+            <select id="sportType" class="input-field w-full rounded-lg px-3 py-2 text-xs">
               <option value="Football">Football</option>
               <option value="Box Cricket">Box Cricket</option>
               <option value="Badminton">Badminton</option>
             </select>
           </div>
-
           <div>
-            <label class="block text-xs font-semibold text-zinc-400 mb-1">DATE</label>
-            <input type="date" id="matchDate" required class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500" />
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-zinc-400 mb-1">TIME SLOT (START TIME OR RANGE)</label>
-            <input type="text" id="matchTime" required placeholder="e.g. 19:00 - 20:00 or 19:00" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500" />
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-zinc-400 mb-1">YOUR WHATSAPP NUMBER (10 DIGITS)</label>
-            <input type="tel" id="hostContact" required placeholder="e.g. 9876543210" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500" />
+            <label class="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">City</label>
+            <select id="cityLocation" class="input-field w-full rounded-lg px-3 py-2 text-xs">
+              <option value="Dehradun" selected>Dehradun</option>
+              <option value="Rishikesh">Rishikesh</option>
+              <option value="Haridwar">Haridwar</option>
+              <option value="Delhi NCR">Delhi NCR</option>
+              <option value="Chandigarh">Chandigarh</option>
+              <option value="Mumbai">Mumbai</option>
+              <option value="Bengaluru">Bengaluru</option>
+            </select>
           </div>
         </div>
 
+        <!-- Turf Venue & Phone Lookup -->
         <div>
-          <label class="block text-xs font-semibold text-zinc-400 mb-1">SETTLEMENT TERMS</label>
-          <select id="stakes" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
-            <option value="50-50">50-50 Split (Each squad pays 50% at counter)</option>
-            <option value="Lose-to-Pay">Lose-to-Pay (Losing squad pays full ground rent)</option>
+          <label class="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
+            Turf Venue (Dehradun Directory)
+          </label>
+          <select id="turfSelect" onchange="handleTurfChange()" required class="input-field w-full rounded-lg px-3 py-2 text-xs mb-2">
+            <option value="" disabled selected>-- Select a Turf Venue --</option>
+            
+            <optgroup label="Dehradun (Verified Contacts Available)">
+              <option value="Gorilla Cage, Bidholi">Gorilla Cage, Bidholi</option>
+              <option value="R Square, 52 Bigha">R Square, 52 Bigha</option>
+              <option value="Sudhowala Arena">Sudhowala Arena</option>
+              <option value="Aaurix Turf & Football Academy">Aaurix Turf & Football Academy</option>
+              <option value="THE DEEP TURF">THE DEEP TURF</option>
+              <option value="Brocode Turf">Brocode Turf</option>
+              <option value="BallZ Arena">BallZ Arena</option>
+              <option value="360 Fitness Arena">360 Fitness Arena</option>
+              <option value="Arena Seven">Arena Seven</option>
+              <option value="AB Turf">AB Turf</option>
+              <option value="Apex Sports Ground">Apex Sports Ground</option>
+              <option value="Eden Turf">Eden Turf</option>
+              <option value="Uttarakhand Football Arena">Uttarakhand Football Arena</option>
+              <option value="Doon Sports Academy">Doon Sports Academy</option>
+              <option value="Game On Dehradun">Game On Dehradun</option>
+              <option value="Trio Sports Arena">Trio Sports Arena</option>
+              <option value="Cap Turf">Cap Turf</option>
+              <option value="Dual Dominators Arena">Dual Dominators Arena</option>
+              <option value="Sumukha Sports Arena">Sumukha Sports Arena</option>
+            </optgroup>
+
+            <optgroup label="Dehradun Venues (Counter / Offline Booking)">
+              <option value="Urban Turf Dribble">Urban Turf Dribble</option>
+              <option value="Play All Sports">Play All Sports</option>
+              <option value="My Cricket Academy">My Cricket Academy</option>
+              <option value="Dasna Cricket Stadium">Dasna Cricket Stadium</option>
+              <option value="Howzzatt Sports Cricket Ground">Howzzatt Sports Cricket Ground</option>
+              <option value="Kicktoplay Box Cricket & Football Turf">Kicktoplay Box Cricket & Football Turf</option>
+              <option value="DAV Cricket Academy">DAV Cricket Academy</option>
+              <option value="Score On">Score On</option>
+              <option value="Japs Fitness & Sports Training">Japs Fitness & Sports Training</option>
+              <option value="Chanarthal Ground">Chanarthal Ground</option>
+              <option value="Dabas Cricket Stadium & Academy">Dabas Cricket Stadium & Academy</option>
+              <option value="Royal Box Cricket">Royal Box Cricket</option>
+              <option value="Dhingra Cricket Academy">Dhingra Cricket Academy</option>
+              <option value="Indoor Cricket Arena">Indoor Cricket Arena</option>
+              <option value="The Dughaout Box Cricket & Football Turf">The Dughaout Box Cricket & Football Turf</option>
+              <option value="Qumar Cricket Complex">Qumar Cricket Complex</option>
+              <option value="New Shah Enterprises">New Shah Enterprises</option>
+              <option value="Gamers Dream Arena">Gamers Dream Arena</option>
+              <option value="Shine India Cricket Club">Shine India Cricket Club</option>
+              <option value="Casa Football Academy">Casa Football Academy</option>
+              <option value="SFS Football Ground">SFS Football Ground</option>
+              <option value="Playzone Solutions">Playzone Solutions</option>
+              <option value="Kvfri Football Ground">Kvfri Football Ground</option>
+              <option value="Ace Football Ground">Ace Football Ground</option>
+              <option value="Ajaib Enterprises LLP">Ajaib Enterprises LLP</option>
+              <option value="Samridhi Sporta Complex">Samridhi Sporta Complex</option>
+              <option value="Signature Football Club">Signature Football Club</option>
+              <option value="Hi Score">Hi Score</option>
+              <option value="Achheja Football Ground">Achheja Football Ground</option>
+            </optgroup>
+
+            <optgroup label="Other">
+              <option value="CUSTOM">➕ Other / Custom Venue</option>
+            </optgroup>
           </select>
+
+          <!-- Custom Venue Name & Phone Input (Shows if CUSTOM selected) -->
+          <div id="customTurfBox" class="space-y-2 mb-2 hidden">
+            <input 
+              type="text" 
+              id="customTurfName" 
+              placeholder="Enter Custom Turf Name & Area" 
+              class="input-field w-full rounded-lg px-3.5 py-2 text-xs placeholder:text-zinc-600"
+            />
+            <input 
+              type="tel" 
+              id="customTurfPhoneInput" 
+              placeholder="Owner/Desk Phone (Optional, 10 digits)" 
+              class="input-field w-full rounded-lg px-3.5 py-2 text-xs placeholder:text-zinc-600"
+            />
+          </div>
+
+          <!-- Instant Turf Contact Card -->
+          <div id="turfCardPreview" class="p-2.5 rounded-lg border border-zinc-800 bg-black/40 flex items-center justify-between">
+            <div>
+              <span class="text-[10px] text-zinc-500 uppercase block font-semibold">Turf Owner Contact</span>
+              <span id="turfPhoneStatus" class="text-xs font-mono font-bold text-zinc-400">Select a venue above</span>
+            </div>
+            <a id="directCallLink" href="#" class="hidden px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-md text-[11px] font-bold hover:bg-emerald-500 hover:text-black transition-all">
+              📞 Call Desk
+            </a>
+          </div>
+          <input type="hidden" id="turfPhoneVal" value="" />
+        </div>
+
+        <!-- Squad Format (5vs5 to 10vs10) -->
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Squad Format</label>
+            <span id="selectedFormatLabel" class="text-[11px] font-bold text-emerald-400">5 vs 5</span>
+          </div>
+          <div class="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+            <button type="button" class="format-btn active px-3.5 py-2 text-xs font-bold rounded-lg transition-all" data-format="5 vs 5">5 vs 5</button>
+            <button type="button" class="format-btn px-3.5 py-2 text-xs font-bold rounded-lg transition-all" data-format="6 vs 6">6 vs 6</button>
+            <button type="button" class="format-btn px-3.5 py-2 text-xs font-bold rounded-lg transition-all" data-format="7 vs 7">7 vs 7</button>
+            <button type="button" class="format-btn px-3.5 py-2 text-xs font-bold rounded-lg transition-all" data-format="8 vs 8">8 vs 8</button>
+            <button type="button" class="format-btn px-3.5 py-2 text-xs font-bold rounded-lg transition-all" data-format="9 vs 9">9 vs 9</button>
+            <button type="button" class="format-btn px-3.5 py-2 text-xs font-bold rounded-lg transition-all" data-format="10 vs 10">10 vs 10</button>
+          </div>
+          <input type="hidden" id="squadFormat" value="5 vs 5" />
+        </div>
+
+        <!-- Date & Drum Time Slot Picker -->
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
+            Match Date & Time Window
+          </label>
+          <input 
+            type="date" 
+            id="matchDate" 
+            required 
+            class="input-field w-full rounded-lg px-3.5 py-2 text-xs mb-2.5"
+          />
+          <div class="grid grid-cols-2 gap-3">
+            <button 
+              type="button" 
+              onclick="openPicker('start')" 
+              class="input-field w-full rounded-xl p-2.5 text-left border border-zinc-800 hover:border-emerald-500/50 transition-all group"
+            >
+              <span class="text-[10px] text-zinc-500 font-bold uppercase block mb-0.5">Kickoff Time</span>
+              <span id="displayStartTime" class="text-sm font-extrabold text-emerald-400 font-mono tracking-wide">07:00 PM</span>
+            </button>
+
+            <button 
+              type="button" 
+              onclick="openPicker('end')" 
+              class="input-field w-full rounded-xl p-2.5 text-left border border-zinc-800 hover:border-emerald-500/50 transition-all group"
+            >
+              <span class="text-[10px] text-zinc-500 font-bold uppercase block mb-0.5">End Time</span>
+              <span id="displayEndTime" class="text-sm font-extrabold text-zinc-300 font-mono tracking-wide">08:00 PM</span>
+            </button>
+          </div>
+          <input type="hidden" id="startTime24" value="19:00" />
+          <input type="hidden" id="endTime24" value="20:00" />
+        </div>
+
+        <!-- WhatsApp Phone -->
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
+            Your WhatsApp Number (10 Digits)
+          </label>
+          <input 
+            type="tel" 
+            id="hostContact" 
+            required 
+            placeholder="e.g. 9876543210" 
+            class="input-field w-full rounded-lg px-3.5 py-2.5 text-xs placeholder:text-zinc-600"
+          />
+        </div>
+
+        <!-- Settlement Terms (50-50, 70-30, Lose-to-Pay) -->
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">Settlement Terms</label>
+          <div class="grid grid-cols-3 gap-2">
+            <!-- 50-50 -->
+            <label id="card50" class="cursor-pointer border border-emerald-500/50 bg-emerald-500/10 rounded-xl p-2.5 flex flex-col justify-between transition-all">
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-[11px] font-bold text-white">50–50</span>
+                <input type="radio" name="stakes" value="50-50" checked onchange="toggleStakesUI()" class="accent-emerald-500 h-3 w-3" />
+              </div>
+              <p class="text-[9px] text-zinc-400 leading-tight">Equal split (50% each)</p>
+            </label>
+
+            <!-- 70-30 -->
+            <label id="card70" class="cursor-pointer border border-zinc-800 bg-zinc-900/60 rounded-xl p-2.5 flex flex-col justify-between transition-all">
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-[11px] font-bold text-amber-400">70–30</span>
+                <input type="radio" name="stakes" value="70-30 (Winner 30% / Loser 70%)" onchange="toggleStakesUI()" class="accent-amber-500 h-3 w-3" />
+              </div>
+              <p class="text-[9px] text-zinc-400 leading-tight">Winner 30%, Loser 70%</p>
+            </label>
+
+            <!-- Lose to Pay -->
+            <label id="cardLose" class="cursor-pointer border border-zinc-800 bg-zinc-900/60 rounded-xl p-2.5 flex flex-col justify-between transition-all">
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-[11px] font-bold text-rose-400">Lose-Pay</span>
+                <input type="radio" name="stakes" value="Lose-to-Pay" onchange="toggleStakesUI()" class="accent-rose-500 h-3 w-3" />
+              </div>
+              <p class="text-[9px] text-zinc-400 leading-tight">Loser pays 100% bill</p>
+            </label>
+          </div>
         </div>
 
         <!-- Venue Verification Checkbox -->
-        <div class="p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-left">
+        <div class="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
           <label class="flex items-start gap-2.5 cursor-pointer">
             <input 
               type="checkbox" 
               id="turfSlotConfirmed" 
               required 
-              class="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-emerald-500 focus:ring-0"
+              class="mt-0.5 h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-900 text-emerald-500 focus:ring-0"
             />
-            <span class="text-xs text-zinc-300 leading-relaxed">
-              <strong class="text-amber-400 block font-semibold mb-0.5">⚠️ Important Venue Policy:</strong>
-              I confirm that I have contacted the turf owner and verified that this time slot is free. 
-              <strong>TurfClash is strictly a matchmaking platform to find opponents</strong>, not for booking pitches. All turf rental fees must be settled directly with the venue desk.
+            <span class="text-[10px] text-zinc-400 leading-snug">
+              <strong class="text-amber-400">Venue Verification:</strong> I confirm I have checked this slot with the turf owner. TurfClash is strictly for matchmaking; pay ground fees directly at the counter.
             </span>
           </label>
         </div>
@@ -95,56 +411,279 @@
         <button 
           type="submit" 
           id="hostSubmitBtn"
-          class="w-full py-2.5 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/10"
+          class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
         >
           Offer a Challenge
         </button>
       </form>
-    </section>
+    </div>
+  </div>
 
-    <!-- Match Fixtures Feed -->
-    <section class="space-y-4">
-      <div class="flex justify-between items-center">
-        <h2 class="text-xl font-bold text-white flex items-center gap-2">
-          <span>🏟️</span> Active Pitch Challenges
-        </h2>
-        <button onclick="loadMatches()" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg border border-zinc-700">
-          🔄 Refresh
-        </button>
+  <!-- DRUM TIME PICKER -->
+  <div id="pickerModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="bg-white text-zinc-900 rounded-3xl p-6 w-full max-w-[300px] shadow-2xl flex flex-col items-center select-none">
+      <h4 class="text-base font-bold text-zinc-800 mb-3">Select time</h4>
+
+      <div class="flex gap-1.5 p-1 bg-zinc-100 rounded-xl mb-4 w-full justify-between">
+        <button type="button" onclick="setPeriod('AM')" id="period-AM" class="period-btn flex-1 py-1.5 text-xs font-semibold rounded-lg text-zinc-600 transition-all">AM</button>
+        <button type="button" onclick="setPeriod('PM')" id="period-PM" class="period-btn active flex-1 py-1.5 text-xs font-semibold rounded-lg text-zinc-600 transition-all">PM</button>
+        <button type="button" onclick="setPeriod('NOON')" id="period-NOON" class="period-btn flex-1 py-1.5 text-xs font-semibold rounded-lg text-zinc-600 transition-all">NOON</button>
       </div>
 
-      <div id="matchFeed" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Fixtures populate here -->
+      <div class="relative w-full h-[176px] flex items-center justify-center overflow-hidden">
+        <div class="absolute w-full h-[46px] border border-zinc-300 rounded-xl pointer-events-none bg-zinc-50/40 z-0"></div>
+        <div class="absolute left-[50%] top-1/2 -translate-y-1/2 -translate-x-1/2 text-lg font-bold text-zinc-400 pointer-events-none z-10">:</div>
+
+        <div class="flex items-center justify-around w-full h-full z-10 px-4 font-mono">
+          <div id="wheelHours" class="wheel-column w-2/5 h-full overflow-y-scroll py-[66px] text-center text-lg font-bold text-zinc-700"></div>
+          <div id="wheelMinutes" class="wheel-column w-2/5 h-full overflow-y-scroll py-[66px] text-center text-lg font-bold text-zinc-700"></div>
+        </div>
       </div>
-    </section>
+
+      <div class="flex justify-end items-center gap-2 w-full mt-6 pt-2">
+        <button type="button" onclick="closePicker()" class="px-4 py-2 text-xs font-bold text-zinc-600 hover:text-zinc-900 rounded-lg transition-colors">Cancel</button>
+        <button type="button" onclick="savePickerTime()" class="px-5 py-2 text-xs font-bold text-zinc-800 border border-zinc-300 hover:bg-zinc-100 rounded-xl transition-all shadow-sm">Save</button>
+      </div>
+    </div>
   </div>
 
   <script>
-    // Replace with your active Render backend URL
+    // Paste your Render backend URL here:
     const API_BASE = "https://turf-matchmaker.onrender.com";
 
-    // 1. Min selectable date = today
+    // ==========================================
+    // DEHRADUN TURF DIRECTORY (VERIFIED 10-DIGIT NUMBERS)
+    // ==========================================
+    const TURF_OWNER_DIRECTORY = {
+      "Gorilla Cage, Bidholi": "8445068341",
+      "R Square, 52 Bigha": "9634991356",
+      "Sudhowala Arena": "7060462287",
+      "Aaurix Turf & Football Academy": "9058231100",
+      "THE DEEP TURF": "6398242571",
+      "Brocode Turf": "8869814037",
+      "BallZ Arena": "9897392540",
+      "360 Fitness Arena": "9045807683",
+      "Arena Seven": "8267930564",
+      "AB Turf": "7895139969",
+      "Apex Sports Ground": "7055134333",
+      "Eden Turf": "9760480230",
+      "Uttarakhand Football Arena": "9456709289",
+      "Doon Sports Academy": "9719301107",
+      "Game On Dehradun": "8791623767",
+      "Trio Sports Arena": "8864963631",
+      "Cap Turf": "9259001500",
+      "Dual Dominators Arena": "8279735265",
+      "Sumukha Sports Arena": "9456700459"
+    };
+
+    let allMatches = [];
+    let currentTab = "OPEN";
+    let activePickerTarget = "start";
+    let selectedPeriod = "PM";
+
     const dateInput = document.getElementById("matchDate");
     if (dateInput) {
       dateInput.min = new Date().toISOString().split("T")[0];
     }
 
-    // 2. Display stored user session phone
-    function updateSessionDisplay() {
-      const storedPhone = localStorage.getItem("turf_user_phone");
-      const display = document.getElementById("sessionDisplay");
-      if (storedPhone) {
-        display.textContent = `${storedPhone.slice(0, 2)}******${storedPhone.slice(-2)}`;
+    function openModal() {
+      document.getElementById("challengeModal").classList.remove("hidden");
+    }
+    function closeModal() {
+      document.getElementById("challengeModal").classList.add("hidden");
+    }
+
+    // Manual Turf Selector & Phone Resolver
+    function handleTurfChange() {
+      const select = document.getElementById("turfSelect");
+      const val = select.value;
+      const customBox = document.getElementById("customTurfBox");
+      const phoneStatus = document.getElementById("turfPhoneStatus");
+      const phoneVal = document.getElementById("turfPhoneVal");
+      const callLink = document.getElementById("directCallLink");
+
+      if (val === "CUSTOM") {
+        customBox.classList.remove("hidden");
+        phoneStatus.textContent = "Offline booking / custom venue";
+        phoneStatus.className = "text-xs font-mono font-bold text-amber-400";
+        phoneVal.value = "";
+        callLink.classList.add("hidden");
       } else {
-        display.textContent = "None (guest)";
+        customBox.classList.add("hidden");
+        const foundPhone = TURF_OWNER_DIRECTORY[val];
+
+        if (foundPhone && foundPhone.trim().length >= 10) {
+          const clean10 = foundPhone.trim().slice(-10);
+          phoneStatus.textContent = `+91 ${clean10}`;
+          phoneStatus.className = "text-xs font-mono font-bold text-emerald-400";
+          phoneVal.value = clean10;
+          callLink.href = `tel:+91${clean10}`;
+          callLink.classList.remove("hidden");
+        } else {
+          phoneStatus.textContent = "Turf phone not listed (Offline Counter Booking)";
+          phoneStatus.className = "text-xs font-mono font-bold text-amber-400";
+          phoneVal.value = "";
+          callLink.classList.add("hidden");
+        }
       }
     }
 
-    // 3. Form Validation & Submission
-    const hostForm = document.getElementById("hostForm");
+    // Populate Scroll Wheels
+    const wheelHours = document.getElementById("wheelHours");
+    const wheelMinutes = document.getElementById("wheelMinutes");
+
+    for (let h = 1; h <= 12; h++) {
+      const val = h.toString().padStart(2, "0");
+      const el = document.createElement("div");
+      el.className = "wheel-item cursor-pointer";
+      el.dataset.val = val;
+      el.textContent = val;
+      wheelHours.appendChild(el);
+    }
+
+    for (let m = 0; m < 60; m += 5) {
+      const val = m.toString().padStart(2, "0");
+      const el = document.createElement("div");
+      el.className = "wheel-item cursor-pointer";
+      el.dataset.val = val;
+      el.textContent = val;
+      wheelMinutes.appendChild(el);
+    }
+
+    function getSnappedValue(columnEl) {
+      const items = columnEl.querySelectorAll(".wheel-item");
+      const scrollTop = columnEl.scrollTop;
+      let closestItem = items[0];
+      let minDiff = Infinity;
+
+      items.forEach((item, idx) => {
+        const itemTop = idx * 44;
+        const diff = Math.abs(scrollTop - itemTop);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestItem = item;
+        }
+      });
+      return closestItem.dataset.val;
+    }
+
+    function scrollColumnToVal(columnEl, val) {
+      const items = columnEl.querySelectorAll(".wheel-item");
+      items.forEach((item, idx) => {
+        if (item.dataset.val === val) {
+          columnEl.scrollTo({ top: idx * 44, behavior: "smooth" });
+        }
+      });
+    }
+
+    function setPeriod(p) {
+      selectedPeriod = p;
+      ["AM", "PM", "NOON"].forEach(opt => {
+        const btn = document.getElementById(`period-${opt}`);
+        if (opt === p) {
+          btn.classList.add("active");
+        } else {
+          btn.classList.remove("active");
+        }
+      });
+
+      if (p === "NOON") {
+        scrollColumnToVal(wheelHours, "12");
+        scrollColumnToVal(wheelMinutes, "00");
+      }
+    }
+
+    function openPicker(target) {
+      activePickerTarget = target;
+      const current24 = document.getElementById(target === "start" ? "startTime24" : "endTime24").value;
+      const [h24, m] = current24.split(":").map(Number);
+      
+      let p = h24 >= 12 ? "PM" : "AM";
+      if (h24 === 12 && m === 0) p = "NOON";
+      setPeriod(p);
+
+      let h12 = h24 % 12;
+      if (h12 === 0) h12 = 12;
+
+      document.getElementById("pickerModal").classList.remove("hidden");
+
+      setTimeout(() => {
+        scrollColumnToVal(wheelHours, h12.toString().padStart(2, "0"));
+        const snappedMin = (Math.round(m / 5) * 5) % 60;
+        scrollColumnToVal(wheelMinutes, snappedMin.toString().padStart(2, "0"));
+      }, 50);
+    }
+
+    function closePicker() {
+      document.getElementById("pickerModal").classList.add("hidden");
+    }
+
+    function savePickerTime() {
+      const hour = getSnappedValue(wheelHours);
+      const minute = getSnappedValue(wheelMinutes);
+
+      let hNum = parseInt(hour, 10);
+      if (selectedPeriod === "NOON") {
+        hNum = 12;
+      } else if (selectedPeriod === "PM" && hNum < 12) {
+        hNum += 12;
+      } else if (selectedPeriod === "AM" && hNum === 12) {
+        hNum = 0;
+      }
+
+      const h24 = hNum.toString().padStart(2, "0");
+      const time24 = `${h24}:${minute}`;
+      const displayPeriod = selectedPeriod === "NOON" ? "NOON" : selectedPeriod;
+      const displayFormatted = `${hour}:${minute} ${displayPeriod}`;
+
+      if (activePickerTarget === "start") {
+        document.getElementById("startTime24").value = time24;
+        document.getElementById("displayStartTime").textContent = displayFormatted;
+      } else {
+        document.getElementById("endTime24").value = time24;
+        document.getElementById("displayEndTime").textContent = displayFormatted;
+      }
+
+      closePicker();
+    }
+
+    // Squad Format click listeners
+    const formatButtons = document.querySelectorAll(".format-btn");
+    const formatInput = document.getElementById("squadFormat");
+    const formatLabel = document.getElementById("selectedFormatLabel");
+
+    formatButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        formatButtons.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const val = btn.getAttribute("data-format");
+        formatInput.value = val;
+        formatLabel.textContent = val;
+      });
+    });
+
+    // Dynamic UI Styling for Stakes
+    function toggleStakesUI() {
+      const selected = document.querySelector('input[name="stakes"]:checked').value;
+      const card50 = document.getElementById("card50");
+      const card70 = document.getElementById("card70");
+      const cardLose = document.getElementById("cardLose");
+
+      card50.className = "cursor-pointer border border-zinc-800 bg-zinc-900/60 rounded-xl p-2.5 flex flex-col justify-between transition-all";
+      card70.className = "cursor-pointer border border-zinc-800 bg-zinc-900/60 rounded-xl p-2.5 flex flex-col justify-between transition-all";
+      cardLose.className = "cursor-pointer border border-zinc-800 bg-zinc-900/60 rounded-xl p-2.5 flex flex-col justify-between transition-all";
+
+      if (selected.startsWith("50-50")) {
+        card50.className = "cursor-pointer border border-emerald-500/50 bg-emerald-500/10 rounded-xl p-2.5 flex flex-col justify-between transition-all";
+      } else if (selected.startsWith("70-30")) {
+        card70.className = "cursor-pointer border border-amber-500/50 bg-amber-500/10 rounded-xl p-2.5 flex flex-col justify-between transition-all";
+      } else {
+        cardLose.className = "cursor-pointer border border-rose-500/50 bg-rose-500/10 rounded-xl p-2.5 flex flex-col justify-between transition-all";
+      }
+    }
+
     const turfCheckbox = document.getElementById("turfSlotConfirmed");
     const submitBtn = document.getElementById("hostSubmitBtn");
-
     if (turfCheckbox && submitBtn) {
       submitBtn.disabled = !turfCheckbox.checked;
       turfCheckbox.addEventListener("change", () => {
@@ -152,43 +691,89 @@
       });
     }
 
-    hostForm.addEventListener("submit", async (e) => {
+    function switchTab(tab) {
+      currentTab = tab;
+      const tabOpen = document.getElementById("tabOpen");
+      const tabConfirmed = document.getElementById("tabConfirmed");
+
+      if (tab === "OPEN") {
+        tabOpen.classList.add("active");
+        tabConfirmed.classList.remove("active");
+      } else {
+        tabConfirmed.classList.add("active");
+        tabOpen.classList.remove("active");
+      }
+      renderCurrentFeed();
+    }
+
+    async function handleManualRefresh() {
+      const icon = document.getElementById("refreshIcon");
+      icon.classList.add("animate-spin");
+      await loadMatches();
+      setTimeout(() => {
+        icon.classList.remove("animate-spin");
+      }, 500);
+    }
+
+    function applyFilters() {
+      renderCurrentFeed();
+    }
+
+    function resetFilters() {
+      document.getElementById("filterCity").value = "ALL";
+      document.getElementById("filterSport").value = "ALL";
+      renderCurrentFeed();
+    }
+
+    // Form Submission
+    document.getElementById("hostForm").addEventListener("submit", async (e) => {
       e.preventDefault();
 
       const selectedDate = document.getElementById("matchDate").value;
-      const selectedTime = document.getElementById("matchTime").value.trim();
-      const hostPhone = document.getElementById("hostContact").value.trim();
+      const startTime24 = document.getElementById("startTime24").value;
+      const endTime24 = document.getElementById("endTime24").value;
+      let hostPhone = document.getElementById("hostContact").value.trim().replace(/[^0-9]/g, "");
 
-      // Extract kickoff time
-      const timeToCheck = selectedTime.includes("-") ? selectedTime.split("-")[0].trim() : selectedTime;
-      const formattedTime = timeToCheck.length === 4 && timeToCheck.indexOf(":") === 1 ? `0${timeToCheck}` : timeToCheck;
+      let selectedVenue = document.getElementById("turfSelect").value;
+      let turfOwnerPhone = document.getElementById("turfPhoneVal").value;
 
-      // 5-minute pre-kickoff check
-      const kickoffDateTime = new Date(`${selectedDate}T${formattedTime}:00`);
-      const cutoffTime = new Date(kickoffDateTime.getTime() - 5 * 60 * 1000);
+      if (selectedVenue === "CUSTOM") {
+        selectedVenue = document.getElementById("customTurfName").value.trim();
+        const customPhone = document.getElementById("customTurfPhoneInput").value.trim().replace(/[^0-9]/g, "");
+        if (customPhone) turfOwnerPhone = customPhone.slice(-10);
+        if (!selectedVenue) {
+          alert("Please type your custom turf venue name!");
+          return;
+        }
+      }
+
+      const formattedSlot = `${startTime24} - ${endTime24}`;
+
+      const kickoff = new Date(`${selectedDate}T${startTime24}:00`);
+      const cutoff = new Date(kickoff.getTime() - 5 * 60 * 1000);
       const now = new Date();
 
-      if (now >= cutoffTime) {
-        alert("Challenges must be scheduled at least 5 minutes before kickoff time!");
+      if (now >= cutoff) {
+        alert("Cannot host a challenge less than 5 minutes before kickoff!");
         return;
       }
 
       if (!turfCheckbox.checked) {
-        alert("Please confirm that the turf slot has been checked with the venue owner.");
+        alert("Please confirm the slot with the turf owner first.");
         return;
       }
 
       localStorage.setItem("turf_user_phone", hostPhone);
-      updateSessionDisplay();
 
       const payload = {
-        turf_name: document.getElementById("turfName").value.trim(),
-        sport: document.getElementById("sportType").value,
+        turf_name: `${selectedVenue} (${document.getElementById("cityLocation").value})`,
+        turf_phone: turfOwnerPhone || "",
+        sport: `${document.getElementById("sportType").value} (${formatInput.value})`,
         date: selectedDate,
-        time: selectedTime,
+        time: formattedSlot,
         host_team: document.getElementById("hostTeam").value.trim(),
         host_contact: hostPhone,
-        stakes: document.getElementById("stakes").value,
+        stakes: document.querySelector('input[name="stakes"]:checked').value,
         slot_confirmed_with_owner: turfCheckbox.checked
       };
 
@@ -202,16 +787,18 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "Failed to post challenge.");
 
-        alert("Challenge posted! Teams can now accept your fixture.");
-        hostForm.reset();
+        alert("Challenge posted successfully!");
+        closeModal();
+        document.getElementById("hostForm").reset();
         submitBtn.disabled = true;
+        document.getElementById("turfPhoneStatus").textContent = "Select a venue above";
+        document.getElementById("directCallLink").classList.add("hidden");
         loadMatches();
       } catch (err) {
         alert(err.message);
       }
     });
 
-    // 4. Fetch & Render Matches with Opponent Privacy
     async function loadMatches() {
       const userPhone = localStorage.getItem("turf_user_phone") || "";
       const feed = document.getElementById("matchFeed");
@@ -220,60 +807,122 @@
         const res = await fetch(`${API_BASE}/api/matches`, {
           headers: { "x-user-phone": userPhone }
         });
-        const matches = await res.json();
+        allMatches = await res.json();
 
-        if (!matches || matches.length === 0) {
-          feed.innerHTML = `
-            <div class="col-span-full py-12 text-center text-zinc-500 border border-dashed border-zinc-800 rounded-xl">
-              No active challenges right now. Offer a challenge above!
-            </div>
-          `;
-          return;
-        }
+        const openCount = allMatches.filter(m => m.status === "OPEN").length;
+        const confirmedCount = allMatches.filter(m => m.status === "CONFIRMED" || m.status === "FIXED").length;
 
-        feed.innerHTML = matches.map(m => renderCard(m)).join("");
+        document.getElementById("countOpen").textContent = openCount;
+        document.getElementById("countConfirmed").textContent = confirmedCount;
+
+        renderCurrentFeed();
       } catch (err) {
-        feed.innerHTML = `<p class="col-span-full text-rose-400 text-xs text-center py-4">Failed to load fixtures. Please check your backend connection.</p>`;
+        feed.innerHTML = `<p class="text-rose-400 text-xs text-center py-4">Error loading fixtures. Check your backend status.</p>`;
       }
     }
 
-    // 5. Render Individual Card
+    function renderCurrentFeed() {
+      const feed = document.getElementById("matchFeed");
+      const cityFilter = document.getElementById("filterCity").value;
+      const sportFilter = document.getElementById("filterSport").value;
+
+      const filtered = allMatches.filter(m => {
+        const isConfirmed = m.status === "CONFIRMED" || m.status === "FIXED";
+        const matchesTab = currentTab === "CONFIRMED" ? isConfirmed : !isConfirmed;
+        if (!matchesTab) return false;
+
+        if (cityFilter !== "ALL" && !m.turf_name.toLowerCase().includes(cityFilter.toLowerCase())) {
+          return false;
+        }
+
+        if (sportFilter !== "ALL" && !m.sport.toLowerCase().includes(sportFilter.toLowerCase())) {
+          return false;
+        }
+
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        const msg = (cityFilter !== "ALL" || sportFilter !== "ALL")
+          ? "No challenges match your selected filters. Try changing city or sport!"
+          : (currentTab === "CONFIRMED" 
+              ? "No confirmed fixtures yet. Accept a challenge to lock a match!" 
+              : "No active challenges right now. Click '+ Offer a Challenge' to post one!");
+        feed.innerHTML = `
+          <div class="py-12 text-center text-zinc-600 border border-dashed border-zinc-800 rounded-2xl text-xs">
+            ${msg}
+          </div>
+        `;
+        return;
+      }
+
+      feed.innerHTML = filtered.map(m => renderCard(m)).join("");
+    }
+
     function renderCard(m) {
       const isConfirmed = m.status === "CONFIRMED" || m.status === "FIXED";
-
       let statusBadge = isConfirmed
-        ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded">LOCKED / CONFIRMED</span>`
-        : `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded">OPEN CHALLENGE</span>`;
+        ? `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">CONFIRMED</span>`
+        : `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">OPEN</span>`;
+
+      // Pitch contact display on match card
+      let turfContactHtml = "";
+      if (m.turf_phone && m.turf_phone.toString().trim().length >= 10) {
+        const cleanTurf = m.turf_phone.toString().replace(/[^0-9]/g, "").slice(-10);
+        turfContactHtml = `
+          <div class="flex items-center justify-between pt-2 border-t border-zinc-800/60 mt-2 text-xs">
+            <span class="text-zinc-500 text-[11px]">🏟️ Turf Desk: <strong class="text-zinc-300 font-mono">+91 ${cleanTurf}</strong></span>
+            <a href="tel:+91${cleanTurf}" class="text-emerald-400 hover:underline font-mono text-[11px] flex items-center gap-1">
+              📞 Call Venue
+            </a>
+          </div>
+        `;
+      } else {
+        turfContactHtml = `
+          <div class="pt-2 border-t border-zinc-800/60 mt-2 text-xs text-zinc-500 text-[11px]">
+            🏟️ Turf Desk: <span class="text-amber-400 font-semibold">Turf phone not listed (Offline Counter Booking)</span>
+          </div>
+        `;
+      }
 
       let actionSection = "";
-
       if (isConfirmed) {
         if (m.can_chat && m.opponent_phone) {
-          const cleanPhone = m.opponent_phone.replace(/[^0-9]/g, "");
-          const waUrl = `https://wa.me/${cleanPhone}?text=Hey!%20Match%20fixed%20for%20${encodeURIComponent(m.turf_name)}%20on%20${encodeURIComponent(m.date)}%20(${encodeURIComponent(m.time)})`;
+          let cleanPhone = m.opponent_phone.toString().replace(/[^0-9]/g, "");
+          if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+
+          // Opponent WhatsApp Message format
+          let waText = "";
+          if (m.turf_phone && m.turf_phone.toString().trim().length >= 10) {
+            const cleanTurf = m.turf_phone.toString().replace(/[^0-9]/g, "").slice(-10);
+            waText = `Hey! Match fixed on TurfClash for ${m.turf_name} on ${m.date} (${m.time}). Please contact the turf owner to re-confirm the pitch slot. Mobile number of turf owner: +91 ${cleanTurf}`;
+          } else {
+            waText = `Hey! Match fixed on TurfClash for ${m.turf_name} on ${m.date} (${m.time}). Please contact the turf owner to re-confirm the pitch slot. Turf phone not listed; please check venue counter directly for offline slot booking.`;
+          }
+
+          const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waText)}`;
           actionSection = `
-            <a href="${waUrl}" target="_blank" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded text-xs text-center flex items-center justify-center gap-1.5 transition-colors">
-              <span>💬</span> WhatsApp Opponent
+            <a href="${waUrl}" target="_blank" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs text-center flex items-center justify-center gap-1.5 transition-colors">
+              💬 WhatsApp Opponent
             </a>
           `;
         } else {
           actionSection = `
-            <div class="text-[11px] text-zinc-500 bg-zinc-800/80 border border-zinc-700/60 rounded px-2.5 py-1.5 text-center">
-              🔒 Contact locked to competing squads
+            <div class="text-[11px] text-zinc-500 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-center">
+              🔒 Contact locked to playing squads
             </div>
           `;
         }
       } else {
-        // Match is OPEN
         if (m.is_host) {
           actionSection = `
-            <button onclick="cancelMatch(${m.id})" class="w-full py-2 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 rounded text-xs font-semibold transition-all">
+            <button onclick="cancelMatch(${m.id})" class="w-full py-2 bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 rounded-lg text-xs font-bold transition-all">
               Cancel Challenge
             </button>
           `;
         } else {
           actionSection = `
-            <button onclick="acceptMatch(${m.id})" class="w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded text-xs transition-colors">
+            <button onclick="acceptMatch(${m.id})" class="w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-lg text-xs transition-colors">
               Accept Challenge
             </button>
           `;
@@ -281,37 +930,35 @@
       }
 
       return `
-        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between space-y-3">
+        <div class="modal-card rounded-xl p-4 flex flex-col justify-between space-y-3">
           <div>
-            <div class="flex justify-between items-start gap-2 mb-2">
-              <span class="text-xs font-bold text-zinc-400 uppercase tracking-wider">${m.sport}</span>
+            <div class="flex justify-between items-center mb-1.5">
+              <span class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">${m.sport}</span>
               ${statusBadge}
             </div>
-            <h3 class="font-bold text-white text-base">${m.turf_name}</h3>
+            <h3 class="font-bold text-white text-sm">${m.turf_name}</h3>
             <p class="text-xs text-zinc-400 mt-0.5">🗓️ ${m.date} &nbsp;•&nbsp; ⏰ ${m.time}</p>
-            <div class="mt-3 p-2 bg-zinc-800/50 rounded border border-zinc-700/40 text-xs">
-              <p class="text-zinc-300"><span class="text-zinc-500 font-medium">Host:</span> ${m.host_team}</p>
-              ${m.challenger_team ? `<p class="text-zinc-300 mt-1"><span class="text-zinc-500 font-medium">Rival:</span> ${m.challenger_team}</p>` : ''}
-              <p class="text-zinc-400 text-[11px] mt-1"><span class="text-zinc-500">Stakes:</span> ${m.stakes}</p>
+            <div class="mt-2.5 p-2.5 bg-black/40 rounded-lg border border-zinc-800 text-xs">
+              <p class="text-zinc-300"><span class="text-zinc-500">Host:</span> ${m.host_team}</p>
+              ${m.challenger_team ? `<p class="text-zinc-300 mt-0.5"><span class="text-zinc-500">Rival:</span> ${m.challenger_team}</p>` : ''}
+              <p class="text-zinc-400 text-[11px] mt-0.5"><span class="text-zinc-500">Terms:</span> ${m.stakes}</p>
+              ${turfContactHtml}
             </div>
           </div>
-          <div class="pt-2">
-            ${actionSection}
-          </div>
+          <div class="pt-1">${actionSection}</div>
         </div>
       `;
     }
 
-    // 6. Accept Challenge
     async function acceptMatch(matchId) {
-      const teamName = prompt("Enter your Team/Squad Name:");
+      const teamName = prompt("Enter your Squad Name:");
       if (!teamName) return;
-
-      const phone = prompt("Enter your 10-digit WhatsApp Number to connect with host:");
+      let phone = prompt("Enter your 10-digit WhatsApp Number to connect with the host:");
       if (!phone) return;
 
-      localStorage.setItem("turf_user_phone", phone.trim());
-      updateSessionDisplay();
+      phone = phone.trim().replace(/[^0-9]/g, "");
+      if (phone.length === 10) phone = "91" + phone;
+      localStorage.setItem("turf_user_phone", phone);
 
       try {
         const res = await fetch(`${API_BASE}/api/matches/${matchId}/accept`, {
@@ -319,24 +966,21 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             challenger_team: teamName.trim(),
-            challenger_contact: phone.trim()
+            challenger_contact: phone
           })
         });
-
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "Failed to accept challenge.");
-
-        alert("Challenge Accepted! Match is locked. You can now contact each other via WhatsApp.");
-        loadMatches();
+        alert("Challenge Accepted! Match locked.");
+        await loadMatches();
+        switchTab("CONFIRMED");
       } catch (err) {
         alert(err.message);
       }
     }
 
-    // 7. Cancel Hosted Match
     async function cancelMatch(matchId) {
-      if (!confirm("Are you sure you want to cancel this hosted challenge?")) return;
-
+      if (!confirm("Are you sure you want to cancel this challenge?")) return;
       const userPhone = localStorage.getItem("turf_user_phone") || "";
 
       try {
@@ -344,19 +988,15 @@
           method: "DELETE",
           headers: { "x-user-phone": userPhone }
         });
-
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "Failed to cancel match.");
-
-        alert("Challenge cancelled successfully.");
+        alert("Challenge cancelled.");
         loadMatches();
       } catch (err) {
         alert(err.message);
       }
     }
 
-    // Initial Load
-    updateSessionDisplay();
     loadMatches();
   </script>
 </body>
