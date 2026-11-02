@@ -1,13 +1,12 @@
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, Header, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
+import os
+from typing import Optional, Dict
+from datetime import datetime
 from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Header, Query
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="TurfClash Matchmaker API")
+app = FastAPI(title="TurfClash API")
 
-# Allow requests from your frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,170 +15,174 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-LOCAL_TZ = ZoneInfo("Asia/Kolkata")
+# In-memory storage (or SQLite if connected)
+matches_db = []
 
-# Fixture database storage
-matches_db: List[Dict[str, Any]] = []
+# Reputation registry keyed by 10-digit phone number:
+# phone -> {"completed": int, "no_shows": int, "disputes": int}
+REPUTATION_DB: Dict[str, dict] = {}
 
 class MatchCreate(BaseModel):
     turf_name: str
     sport: str
-    date: str  # Format: "YYYY-MM-DD"
-    time: str  # e.g., "19:00 - 20:00" or "19:00"
+    date: str
+    time: str
     host_team: str
     host_contact: str
-    stakes: Optional[str] = "50-50"
+    stakes: str
     slot_confirmed_with_owner: bool
+    turf_phone: Optional[str] = ""
 
-class AcceptMatchPayload(BaseModel):
+class MatchAccept(BaseModel):
     challenger_team: str
     challenger_contact: str
 
-def parse_slot_cutoff_time(match_date: str, match_time: str, buffer_minutes: int = 5) -> datetime:
-    """
-    Parses kickoff time and applies cutoff buffer (default: 5 minutes before kickoff).
-    A 19:00 slot expires at 18:55 IST.
-    """
-    raw = match_time.lower().strip()
+class ReportSubmit(BaseModel):
+    verdict: str  # "COMPLETED", "NO_SHOW", "DISPUTED"
+
+def get_reliability_stats(phone: str) -> dict:
+    clean = "".join(filter(str.isdigit, str(phone)))[-10:] if phone else ""
+    stats = REPUTATION_DB.get(clean, {"completed": 0, "no_shows": 0, "disputes": 0})
+    total = stats["completed"] + stats["no_shows"] + stats["disputes"]
     
-    # Extract kickoff time (first part if range)
-    if "-" in raw:
-        start_part = raw.split("-")[0].strip()
-    elif "to" in raw:
-        start_part = raw.split("to")[0].strip()
+    if total == 0:
+        return {"badge": "New Squad", "score": None, "no_shows": 0, "total": 0, "banned": False}
+    
+    score = int((stats["completed"] / total) * 100)
+    is_banned = (stats["no_shows"] + stats["disputes"]) >= 2
+
+    if is_banned:
+        badge = f"⛔ Suspended ({stats['no_shows']} No-Shows)"
+    elif stats["no_shows"] > 0:
+        badge = f"⚠️ {score}% Reliable ({stats['no_shows']} No-Show)"
     else:
-        start_part = raw
+        badge = f"🛡️ {score}% Reliable ({stats['completed']} matches)"
 
-    # Pad single digit hours
-    if len(start_part.split(":")[0]) == 1:
-        start_part = f"0{start_part}"
-
-    kickoff_dt = datetime.strptime(f"{match_date} {start_part}", "%Y-%m-%d %H:%M").replace(tzinfo=LOCAL_TZ)
-    return kickoff_dt - timedelta(minutes=buffer_minutes)
-
-@app.post("/api/matches", status_code=status.HTTP_201_CREATED)
-def host_match(match: MatchCreate):
-    # Enforce venue verification terms
-    if not match.slot_confirmed_with_owner:
-        raise HTTPException(
-            status_code=400, 
-            detail="You must confirm you have checked slot availability with the turf owner."
-        )
-
-    # Server-side validation against expired slots (must be >= 5 mins before kickoff)
-    try:
-        cutoff_dt = parse_slot_cutoff_time(match.date, match.time, buffer_minutes=5)
-        if cutoff_dt <= datetime.now(LOCAL_TZ):
-            raise HTTPException(
-                status_code=400, 
-                detail="Matches must be hosted at least 5 minutes before kickoff time."
-            )
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date/time format.")
-
-    match_dict = match.model_dump()
-    match_dict["id"] = len(matches_db) + 1
-    match_dict["status"] = "OPEN"
-    match_dict["challenger_team"] = None
-    match_dict["challenger_contact"] = None
-
-    matches_db.append(match_dict)
-    return {"message": "Fixture posted successfully", "match": match_dict}
+    return {
+        "badge": badge,
+        "score": score,
+        "no_shows": stats["no_shows"],
+        "total": total,
+        "banned": is_banned
+    }
 
 @app.get("/api/matches")
 def get_matches(x_user_phone: Optional[str] = Header(None)):
-    now = datetime.now(LOCAL_TZ)
-    visible_matches = []
-    viewer_phone = str(x_user_phone or "").strip()
+    user_phone_clean = "".join(filter(str.isdigit, str(x_user_phone)))[-10:] if x_user_phone else ""
+    output = []
+    
+    for m in matches_db:
+        h_phone = "".join(filter(str.isdigit, str(m.get("host_contact", ""))))[-10:]
+        c_phone = "".join(filter(str.isdigit, str(m.get("challenger_contact", ""))))[-10:] if m.get("challenger_contact") else ""
 
-    for match in matches_db:
-        # Check auto-expiry (5 minutes before start time)
-        try:
-            cutoff_dt = parse_slot_cutoff_time(match["date"], match["time"], buffer_minutes=5)
-            if match.get("status") == "OPEN" and cutoff_dt <= now:
-                match["status"] = "EXPIRED"
-                continue
-        except Exception:
-            pass
+        is_host = (user_phone_clean == h_phone) and bool(user_phone_clean)
+        is_challenger = (user_phone_clean == c_phone) and bool(user_phone_clean)
+        is_participant = is_host or is_challenger
 
-        if match.get("status") in ["EXPIRED", "CANCELLED"]:
-            continue
+        opponent_phone = None
+        if is_host:
+            opponent_phone = c_phone
+        elif is_challenger:
+            opponent_phone = h_phone
 
-        m = dict(match)
-        host_phone = str(m.get("host_contact", "")).strip()
-        challenger_phone = str(m.get("challenger_contact", "")).strip()
+        output.append({
+            "id": m["id"],
+            "turf_name": m["turf_name"],
+            "turf_phone": m.get("turf_phone", ""),
+            "sport": m["sport"],
+            "date": m["date"],
+            "time": m["time"],
+            "host_team": m["host_team"],
+            "host_stats": get_reliability_stats(h_phone),
+            "stakes": m["stakes"],
+            "status": m["status"],
+            "challenger_team": m.get("challenger_team"),
+            "challenger_stats": get_reliability_stats(c_phone) if c_phone else None,
+            "is_host": is_host,
+            "can_chat": is_participant and (m["status"] in ["CONFIRMED", "FIXED"]),
+            "can_report": is_participant and (m["status"] in ["CONFIRMED", "FIXED"]),
+            "has_reported": user_phone_clean in m.get("reported_by", []),
+            "opponent_phone": opponent_phone
+        })
+    return output
 
-        # Check host ownership for cancel button display
-        m["is_host"] = bool(viewer_phone and viewer_phone == host_phone)
+@app.post("/api/matches")
+def create_match(match: MatchCreate):
+    h_phone = "".join(filter(str.isdigit, str(match.host_contact)))[-10:]
+    stats = get_reliability_stats(h_phone)
+    if stats["banned"]:
+        raise HTTPException(status_code=403, detail="Your number is suspended due to multiple reported no-shows.")
 
-        # Contact privacy for confirmed matches
-        if m.get("status") in ["FIXED", "CONFIRMED"]:
-            is_host = viewer_phone and (viewer_phone == host_phone)
-            is_challenger = viewer_phone and (viewer_phone == challenger_phone)
-
-            if is_host:
-                m["opponent_phone"] = challenger_phone
-                m["can_chat"] = True
-            elif is_challenger:
-                m["opponent_phone"] = host_phone
-                m["can_chat"] = True
-            else:
-                m["can_chat"] = False
-                m.pop("host_contact", None)
-                m.pop("challenger_contact", None)
-                m.pop("opponent_phone", None)
-        else:
-            # Hide host phone on open listing until match is accepted
-            m["can_chat"] = False
-            if not m["is_host"]:
-                m.pop("host_contact", None)
-
-        visible_matches.append(m)
-
-    return visible_matches
+    new_match = {
+        "id": len(matches_db) + 1,
+        "turf_name": match.turf_name,
+        "turf_phone": match.turf_phone or "",
+        "sport": match.sport,
+        "date": match.date,
+        "time": match.time,
+        "host_team": match.host_team,
+        "host_contact": h_phone,
+        "stakes": match.stakes,
+        "slot_confirmed_with_owner": match.slot_confirmed_with_owner,
+        "status": "OPEN",
+        "challenger_team": None,
+        "challenger_contact": None,
+        "reported_by": []
+    }
+    matches_db.append(new_match)
+    return {"message": "Challenge created", "match": new_match}
 
 @app.post("/api/matches/{match_id}/accept")
-def accept_match(match_id: int, payload: AcceptMatchPayload):
-    target_match = next((m for m in matches_db if m.get("id") == match_id), None)
-    if not target_match:
-        raise HTTPException(status_code=404, detail="Match not found.")
+def accept_match(match_id: int, body: MatchAccept):
+    c_phone = "".join(filter(str.isdigit, str(body.challenger_contact)))[-10:]
+    stats = get_reliability_stats(c_phone)
+    if stats["banned"]:
+        raise HTTPException(status_code=403, detail="Your number is suspended due to multiple reported no-shows.")
 
-    # Guard: Cannot accept within the 5 minutes prior to kickoff or after
-    now = datetime.now(LOCAL_TZ)
-    cutoff_dt = parse_slot_cutoff_time(target_match["date"], target_match["time"], buffer_minutes=5)
-    if cutoff_dt <= now:
-        target_match["status"] = "EXPIRED"
-        raise HTTPException(
-            status_code=400, 
-            detail="Registration closed: challenges must be accepted at least 5 minutes before kickoff."
-        )
+    target = next((m for m in matches_db if m["id"] == match_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Match not found")
+    if target["status"] != "OPEN":
+        raise HTTPException(status_code=400, detail="Match already locked or expired")
 
-    if target_match.get("status") != "OPEN":
-        raise HTTPException(status_code=400, detail="Match is no longer open for challenges.")
+    target["challenger_team"] = body.challenger_team
+    target["challenger_contact"] = c_phone
+    target["status"] = "CONFIRMED"
+    return {"message": "Match accepted", "match": target}
 
-    target_match["status"] = "CONFIRMED"
-    target_match["challenger_team"] = payload.challenger_team
-    target_match["challenger_contact"] = payload.challenger_contact
+@app.post("/api/matches/{match_id}/report")
+def report_match(match_id: int, report: ReportSubmit, x_user_phone: Optional[str] = Header(None)):
+    user_phone = "".join(filter(str.isdigit, str(x_user_phone)))[-10:] if x_user_phone else ""
+    if not user_phone:
+        raise HTTPException(status_code=401, detail="Phone header required")
 
-    return {"message": "Challenge accepted! Match is locked.", "match": target_match}
+    target = next((m for m in matches_db if m["id"] == match_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Match not found")
 
-@app.delete("/api/matches/{match_id}")
-def cancel_match(match_id: int, x_user_phone: Optional[str] = Header(None)):
-    viewer_phone = str(x_user_phone or "").strip()
-    if not viewer_phone:
-        raise HTTPException(status_code=401, detail="Phone verification required to cancel.")
+    h_phone = target["host_contact"]
+    c_phone = target.get("challenger_contact")
 
-    target_match = next((m for m in matches_db if m.get("id") == match_id), None)
-    if not target_match:
-        raise HTTPException(status_code=404, detail="Match not found.")
+    if user_phone not in [h_phone, c_phone]:
+        raise HTTPException(status_code=403, detail="Only playing captains can rate this match")
 
-    if target_match.get("status") != "OPEN":
-        raise HTTPException(status_code=400, detail="Only unclaimed open fixtures can be cancelled.")
+    if user_phone in target.get("reported_by", []):
+        raise HTTPException(status_code=400, detail="You already submitted feedback for this fixture")
 
-    if str(target_match.get("host_contact", "")).strip() != viewer_phone:
-        raise HTTPException(status_code=403, detail="Only the hosting squad can cancel this challenge.")
+    # Target being reported is the opponent
+    opponent_target_phone = c_phone if user_phone == h_phone else h_phone
+    if not opponent_target_phone:
+        raise HTTPException(status_code=400, detail="No opponent found to rate")
 
-    target_match["status"] = "CANCELLED"
-    matches_db.remove(target_match)
+    if opponent_target_phone not in REPUTATION_DB:
+        REPUTATION_DB[opponent_target_phone] = {"completed": 0, "no_shows": 0, "disputes": 0}
 
-    return {"message": "Fixture cancelled successfully."}
+    if report.verdict == "COMPLETED":
+        REPUTATION_DB[opponent_target_phone]["completed"] += 1
+    elif report.verdict == "NO_SHOW":
+        REPUTATION_DB[opponent_target_phone]["no_shows"] += 1
+    elif report.verdict == "DISPUTED":
+        REPUTATION_DB[opponent_target_phone]["disputes"] += 1
+
+    target.setdefault("reported_by", []).append(user_phone)
+    return {"message": "Fair Play review logged successfully"}
